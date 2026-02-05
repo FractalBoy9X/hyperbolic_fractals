@@ -1,0 +1,1276 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Chodzenie: hiperboliczna płaszczyzna (Poincaré) vs kartezjański Euklides</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;500&family=Space+Grotesk:wght@400;700&display=swap');
+    *{margin:0;padding:0;box-sizing:border-box;}
+    body{overflow:hidden;background:#0a0a0f;font-family:'JetBrains Mono',monospace;}
+    #canvas{position:fixed;inset:0;}
+    #hud{
+      position:fixed; top:16px; left:16px; z-index:10;
+      background: rgba(10,10,15,0.85);
+      border:1px solid rgba(127,219,202,0.22);
+      border-radius:12px; padding:14px 16px;
+      backdrop-filter: blur(10px);
+      color:#89ddff; font-size:12px; line-height:1.65;
+      max-width: 860px;
+    }
+    #hud h1{
+      font-family:'Space Grotesk',sans-serif;
+      font-size:16px; color:#fff; margin-bottom:8px;
+    }
+    .row{display:flex;gap:12px;flex-wrap:wrap;}
+    .chip{
+      display:inline-flex; gap:8px; align-items:center;
+      padding:4px 10px; border-radius:999px;
+      border:1px solid rgba(199,146,234,0.25);
+      background: rgba(199,146,234,0.10);
+      color:#fff; font-size:11px;
+      user-select:none;
+    }
+    .chip b{color:#ffcb6b;font-weight:500;}
+    .hint{color:#7fdbca;margin-top:8px;font-size:11px;opacity:.95;}
+    .k{color:#ffcb6b;}
+    #titles{
+      position:fixed; top:16px; right:16px; z-index:10;
+      display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end;
+      max-width: 920px;
+    }
+    .badge{
+      border:1px solid rgba(127,219,202,0.22);
+      background: rgba(127,219,202,0.10);
+      border-radius:999px;
+      padding:6px 10px;
+      color:#c3e88d; font-size:11px; user-select:none;
+    }
+    .badge strong{color:#fff;font-family:'Space Grotesk',sans-serif;font-weight:700;}
+    #note{
+      position:fixed; bottom:16px; left:16px; z-index:10;
+      background: rgba(10,10,15,0.85);
+      border:1px solid rgba(199,146,234,0.22);
+      border-radius:10px; padding:10px 12px;
+      backdrop-filter: blur(10px);
+      color:#c792ea; font-size:11px; line-height:1.6;
+      max-width: 920px;
+    }
+    #legend{
+      position:fixed; bottom:16px; right:16px; z-index:10;
+      background: rgba(10,10,15,0.85);
+      border:1px solid rgba(127,219,202,0.22);
+      border-radius:10px; padding:10px 12px;
+      backdrop-filter: blur(10px);
+      color:#89ddff; font-size:10px; line-height:1.5;
+      max-width: 320px;
+    }
+    #legend h3{
+      font-family:'Space Grotesk',sans-serif;
+      font-size:12px; color:#fff; margin-bottom:6px;
+    }
+    .legend-item{display:flex;gap:8px;align-items:center;margin:3px 0;}
+    .legend-color{width:12px;height:12px;border-radius:2px;}
+        #controls{
+      position:fixed;
+      top:110px;
+      left:0;                 /* przypięcie do krawędzi */
+      z-index:10;
+
+      display:flex;
+      flex-direction:column;   /* pionowo */
+      gap:10px;
+
+      background: rgba(10,10,15,0.88);
+      border:1px solid rgba(255,203,107,0.25);
+      border-left:none;        /* bo jesteśmy przy krawędzi */
+      border-radius:0 12px 12px 0;
+      padding:10px 12px 10px 10px;
+
+      backdrop-filter: blur(10px);
+
+      /* “prawie schowany” panel – zostaje widoczny uchwyt */
+      transform: translateX(calc(-100% + 34px));
+      transition: transform 0.22s ease;
+    }
+
+    #controls:hover{
+      transform: translateX(0);
+    }
+
+    /* mały uchwyt do złapania */
+    #controls::after{
+      content:"";
+      position:absolute;
+      top:10px;
+      right:-1px;
+      width:34px;
+      height:32px;
+
+      border:1px solid rgba(255,203,107,0.25);
+      border-left:none;
+      border-radius:0 12px 12px 0;
+
+      background: rgba(10,10,15,0.92);
+      backdrop-filter: blur(10px);
+    }
+
+    /* ikonka “|||” na uchwycie */
+    #controls::before{
+      content:"≡";
+      position:absolute;
+      top:15px;
+      right:12px;
+      font-family:'Space Grotesk',sans-serif;
+      font-size:16px;
+      color:#ffcb6b;
+      opacity:0.9;
+      pointer-events:none;
+    }
+        .toggle-btn{
+      background: rgba(10,10,15,0.92);
+      border:1px solid rgba(255,203,107,0.4);
+      border-radius:10px;
+      padding:9px 14px;
+      min-width: 210px;
+      text-align:left;
+
+      backdrop-filter: blur(10px);
+      color:#ffcb6b;
+      font-size:11px;
+      cursor:pointer; user-select:none;
+      transition: all 0.2s ease;
+    }
+    .toggle-btn:hover{
+      background: rgba(255,203,107,0.15);
+      border-color: rgba(255,203,107,0.6);
+    }
+    .toggle-btn.active{
+      background: rgba(255,203,107,0.25);
+      border-color: #ffcb6b;
+      color:#fff;
+    }
+    .toggle-btn:hover{
+      background: rgba(255,203,107,0.15);
+      border-color: rgba(255,203,107,0.6);
+    }
+    .toggle-btn.active{
+      background: rgba(255,203,107,0.25);
+      border-color: #ffcb6b;
+      color:#fff;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+
+  <div id="hud">
+    <h1>🚶‍♂️ „Chodzenie" po hiperbolicznej płaszczyźnie i podgląd w ℝ²</h1>
+    <div class="row">
+      <div class="chip">Kierunek H²: <b id="yaw">0.0°</b></div>
+      <div class="chip">Kierunek ℝ²: <b id="yawE">0.0°</b></div>
+      <div class="chip" style="border-color:rgba(255,107,107,0.5);background:rgba(255,107,107,0.15);">Holonomia: <b id="holonomy" style="color:#ff6b6b;">0.0°</b></div>
+      <div class="chip">Hiper. polarne: (d<sub>H</sub>, θ)=(<b id="dH">0.000</b>, <b id="thetaH">0.0°</b>)</div>
+      <div class="chip">Dysk Poincarégo: |a|=<b id="ah">0.000</b></div>
+      <div class="chip">Euklidesowe (ℝ²): (x,y)=(<b id="ex">0.00</b>, <b id="ey">0.00</b>)</div>
+      <div class="chip"><span id="distLabel">Odległość euklid.</span>: <b id="dE">0.00</b></div>
+      <div class="chip">t=<b id="tt">0.0</b>s</div>
+    </div>
+    <div class="hint">
+      Sterowanie: <span class="k">W/S</span> idź przód/tył · <span class="k">A/D</span> skręć · <span class="k">Shift</span> sprint ·
+      <span class="k">R</span> reset · <span class="k">Mysz (drag)</span> obrót widoku · <span class="k">Scroll</span> zoom
+    </div>
+  </div>
+
+  <div id="titles">
+    <div class="badge"><strong>LEWO</strong> — Płaszczyzna hiperboliczna (model dysku Poincarégo): Ty jesteś w środku, „świat się przesuwa" (izometrie Möbiusa)</div>
+    <div class="badge" id="rightBadge"><strong>PRAWO</strong> — Tryb A: te same komendy ruchu w geometrii euklidesowej ℝ²</div>
+  </div>
+
+  <div id="controls">
+    <button class="toggle-btn" id="btnSierpinski">△ Trójkąt Sierpińskiego</button>
+    <button class="toggle-btn" id="btnMode">Tryb A: te same komendy</button>
+    <button class="toggle-btn" id="btn3D">🌐 Widok 3D Hyperboloid</button>
+  </div>
+
+  <div id="note">
+    <div><span class="k">Systemy współrzędnych:</span></div>
+    <div>• <b>Dysk Poincarégo</b> (x,y): współrzędne euklidesowe w dysku |z|<1 — używane wewnętrznie</div>
+    <div>• <b>Polarne hiperboliczne</b> (d<sub>H</sub>,θ): d<sub>H</sub>=2·artanh(|z|) — <i>naturalne</i> współrzędne hiperboliczne</div>
+    <div>• Siatka pokazuje linie stałego d<sub>H</sub> (okręgi) i stałego θ (promienie) — to jest <i>układ współrzędnych</i> przestrzeni H²</div>
+    <div>• Zauważ: przy brzegu dysku d<sub>H</sub>→∞, mimo że |z|→1 (ograniczone euklidesowo)</div>
+  </div>
+
+  <div id="legend">
+    <h3>📐 Współrzędne hiperboliczne</h3>
+    <div style="margin-bottom:8px;color:#fff;font-size:10px;">
+      <b>Polarne hiper. (d<sub>H</sub>, θ):</b> naturalne współrzędne<br>
+      <span style="color:#89ddff;">d<sub>H</sub></span> = odległość hiperboliczna od początku<br>
+      <span style="color:#89ddff;">θ</span> = kąt (taki sam jak euklidesowy)
+    </div>
+    <div style="margin-bottom:8px;color:#aaa;font-size:9px;">
+      Konwersja: ρ = tanh(d<sub>H</sub>/2), gdzie ρ = |z| w dysku
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background:#c792ea;"></div>
+      <span>Okręgi: stałe d<sub>H</sub> (Δ=0.5)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background:#3d5a80;"></div>
+      <span>Promienie: stałe θ (geodezyjne)</span>
+    </div>
+    <div class="legend-item">
+      <div class="legend-color" style="background:#89ddff;"></div>
+      <span>Brzeg: d<sub>H</sub> → ∞</span>
+    </div>
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    const canvas = document.getElementById('canvas');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.setClearColor(0x0a0a0f, 1);
+    renderer.setScissorTest(true);
+
+    const sceneL = new THREE.Scene();
+    const sceneR = new THREE.Scene();
+
+    // Orthographic cameras for a "2D plane" feel
+    function makeOrtho(){
+      return new THREE.OrthographicCamera(-1, 1, 1, -1, 0.01, 100);
+    }
+    const camL = makeOrtho();
+    const camR = makeOrtho();
+    camL.position.set(0, 0, 5); camL.lookAt(0,0,0);
+    camR.position.set(0, 0, 5); camR.lookAt(0,0,0);
+
+    // === 3D HYPERBOLOID VIEW ===
+    const scene3D = new THREE.Scene();
+    const cam3D = new THREE.PerspectiveCamera(60, 1, 0.1, 100);
+    cam3D.position.set(4, 4, 5);
+    cam3D.lookAt(0, 0, 2);
+    
+    let show3D = false;  // czy pokazujemy widok 3D
+    const view3D = { theta: Math.PI/4, phi: Math.PI/4, dist: 8, dragging: false, lx: 0, ly: 0 };
+    
+    // Konwersja: dysk Poincarégo (u,v) → hyperboloid (x,y,z)
+    // Hyperboloid: x² + y² - z² = -1, z > 0
+    function diskToHyperboloid(u, v) {
+      const r2 = u*u + v*v;
+      if (r2 >= 0.9999) {
+        // Punkt na brzegu - mapujemy na duże z
+        const scale = 50;
+        const norm = Math.sqrt(r2);
+        return { x: scale * u / norm, y: scale * v / norm, z: Math.sqrt(scale*scale + 1) };
+      }
+      const denom = 1 - r2;
+      const x = 2 * u / denom;
+      const y = 2 * v / denom;
+      const z = (1 + r2) / denom;
+      return { x, y, z };
+    }
+    
+    // Konwersja odwrotna: hyperboloid → dysk
+    function hyperboloidToDisk(x, y, z) {
+      const u = x / (z + 1);
+      const v = y / (z + 1);
+      return { u, v };
+    }
+
+    // View controls (rotate + zoom) shared
+    const view = { rot: 0.0, zoom: 1.0, dragging:false, lx:0, ly:0 };
+    function applyView(cam){
+      cam.zoom = view.zoom;
+      cam.rotation.z = view.rot;
+      cam.updateProjectionMatrix();
+    }
+
+    // --- Complex helpers ---
+    function C(re, im){ return {re, im}; }
+    function cAdd(a,b){ return C(a.re+b.re, a.im+b.im); }
+    function cMul(a,b){ return C(a.re*b.re - a.im*b.im, a.re*b.im + a.im*b.re); }
+    function cConj(a){ return C(a.re, -a.im); }
+    function cAbs2(a){ return a.re*a.re + a.im*a.im; }
+    function cAbs(a){ return Math.sqrt(cAbs2(a)); }
+    function cDiv(a,b){
+      const d = cAbs2(b);
+      return C((a.re*b.re + a.im*b.im)/d, (a.im*b.re - a.re*b.im)/d);
+    }
+
+    // Möbius translation in the disk: T_a(z) = (z + a)/(1 + conj(a) z)
+    // This is an isometry of the Poincaré disk that maps 0 → a
+    function mobiusTranslate(z, a){
+      const num = cAdd(z, a);
+      const denom = cAdd(C(1,0), cMul(cConj(a), z));
+      return cDiv(num, denom);
+    }
+
+    // --- Hyperbolic distance helpers ---
+    // Euclidean radius ρ ↔ Hyperbolic distance d: ρ = tanh(d/2)
+    function hyperbolicToEuclidean(dH) {
+      return Math.tanh(dH / 2);
+    }
+    function euclideanToHyperbolic(rho) {
+      // d = 2 * artanh(ρ)
+      if (rho >= 1) return Infinity;
+      return 2 * Math.atanh(rho);
+    }
+
+    // --- Angle normalization ---
+    function normalizeAngle(angle) {
+      // Normalizuje kąt do zakresu [0, 2π)
+      angle = angle % (2 * Math.PI);
+      if (angle < 0) angle += 2 * Math.PI;
+      return angle;
+    }
+
+    // --- Hyperbolic geodesic (arc of circle orthogonal to boundary) ---
+    // Returns array of complex points along the geodesic from z1 to z2
+    function hyperbolicGeodesic(z1, z2, numPoints = 32) {
+      const x1 = z1.re, y1 = z1.im;
+      const x2 = z2.re, y2 = z2.im;
+      
+      // Cross product - checks collinearity with origin
+      const cross = x2 * y1 - x1 * y2;
+      
+      // If points are collinear with center (lie on diameter), geodesic is straight line
+      if (Math.abs(cross) < 1e-10) {
+        const points = [];
+        for (let i = 0; i <= numPoints; i++) {
+          const t = i / numPoints;
+          points.push(C(x1 + t * (x2 - x1), y1 + t * (y2 - y1)));
+        }
+        return points;
+      }
+      
+      // Midpoint of chord
+      const mx = (x1 + x2) / 2;
+      const my = (y1 + y2) / 2;
+      
+      // Vector perpendicular to chord
+      const nx = -(y2 - y1);
+      const ny = x2 - x1;
+      
+      // Calculate parameter t for center of geodesic circle
+      // Orthogonality condition: |center|² = 1 + r²
+      const r1sq = x1 * x1 + y1 * y1;
+      const numerator = (1 + r1sq) / 2 - mx * x1 - my * y1;
+      const denominator = nx * x1 + ny * y1; // = cross
+      
+      const t = numerator / denominator;
+      
+      // Center of geodesic circle (outside the disk!)
+      const cx = mx + t * nx;
+      const cy = my + t * ny;
+      
+      // Radius of geodesic circle
+      const r = Math.sqrt((cx - x1) * (cx - x1) + (cy - y1) * (cy - y1));
+      
+      // Start and end angles
+      const angle1 = Math.atan2(y1 - cy, x1 - cx);
+      const angle2 = Math.atan2(y2 - cy, x2 - cx);
+      
+      // Choose shorter arc (the one inside the disk)
+      let dAngle = angle2 - angle1;
+      while (dAngle > Math.PI) dAngle -= 2 * Math.PI;
+      while (dAngle < -Math.PI) dAngle += 2 * Math.PI;
+      
+      // Generate arc points
+      const points = [];
+      for (let i = 0; i <= numPoints; i++) {
+        const s = i / numPoints;
+        const angle = angle1 + s * dAngle;
+        const px = cx + r * Math.cos(angle);
+        const py = cy + r * Math.sin(angle);
+        points.push(C(px, py));
+      }
+      
+      return points;
+    }
+
+    // --- Hyperbolic midpoint between two points ---
+    function hyperbolicMidpoint(z1, z2) {
+      // Translate z1 to origin using Möbius transformation
+      const z1neg = C(-z1.re, -z1.im);
+      const z2_translated = mobiusTranslate(z2, z1neg);
+      
+      // z2_translated lies on a ray from origin
+      // Hyperbolic distance: d = 2*artanh(|z2_translated|)
+      const rho = cAbs(z2_translated);
+      if (rho < 1e-12) return z1; // Points are the same
+      
+      const d = 2 * Math.atanh(Math.min(rho, 0.9999999));
+      
+      // Midpoint has distance d/2, so |mid| = tanh(d/4)
+      const rho_mid = Math.tanh(d / 4);
+      
+      // Direction
+      const angle = Math.atan2(z2_translated.im, z2_translated.re);
+      const mid_translated = C(rho_mid * Math.cos(angle), rho_mid * Math.sin(angle));
+      
+      // Translate back
+      return mobiusTranslate(mid_translated, z1);
+    }
+
+    // --- Player state ---
+    let yaw = 0;           // hyperbolic yaw (with holonomy correction)
+    let yawEuclid = 0;     // Euclidean yaw (no holonomy - flat space)
+    let a = C(0,0);        // player position in disk coordinates (|a|<1)
+    let ex = 0, ey = 0;    // true Euclidean position (right side)
+
+    const keys = {};
+    const TURN_SPEED = 1.8; // rad/s
+    const WALK_SPEED = 1.2; // hyperbolic distance units per second
+
+    // ---------- LEFT (hyperbolic) ----------
+    const left = { objects: [], arrow: null };
+
+    // === BUILD 3D SCENE ===
+    const hyper3D = {
+      surface: null,
+      grid: [],
+      sierpinski: [],
+      player: null,
+      arrow: null
+    };
+    
+    function build3DScene() {
+      // Oświetlenie
+      const ambientLight = new THREE.AmbientLight(0x404040, 0.5);
+      scene3D.add(ambientLight);
+      const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      dirLight.position.set(5, 5, 10);
+      scene3D.add(dirLight);
+      
+      // Siatka hyperboloidu
+      const gridMaterial = new THREE.LineBasicMaterial({ color: 0x3d5a80, transparent: true, opacity: 0.4 });
+      const gridMaterialBright = new THREE.LineBasicMaterial({ color: 0xc792ea, transparent: true, opacity: 0.5 });
+      
+      // Okręgi stałej odległości hiperbolicznej (= koła na hyperboloidzie na stałej wysokości z)
+      for (let dH = 0.5; dH <= 3.5; dH += 0.5) {
+        const rDisk = Math.tanh(dH / 2);
+        const pts = [];
+        for (let i = 0; i <= 64; i++) {
+          const th = (i / 64) * Math.PI * 2;
+          const u = rDisk * Math.cos(th);
+          const v = rDisk * Math.sin(th);
+          const p = diskToHyperboloid(u, v);
+          pts.push(new THREE.Vector3(p.x, p.y, p.z));
+        }
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        const isInteger = Math.abs(dH - Math.round(dH)) < 0.01;
+        const line = new THREE.Line(geo, isInteger ? gridMaterialBright : gridMaterial);
+        scene3D.add(line);
+        hyper3D.grid.push(line);
+      }
+      
+      // Promienie (geodezyjne przez środek)
+      for (let i = 0; i < 12; i++) {
+        const th = (i / 12) * Math.PI * 2;
+        const pts = [];
+        for (let r = 0; r <= 0.95; r += 0.02) {
+          const u = r * Math.cos(th);
+          const v = r * Math.sin(th);
+          const p = diskToHyperboloid(u, v);
+          pts.push(new THREE.Vector3(p.x, p.y, p.z));
+        }
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        const line = new THREE.Line(geo, gridMaterial);
+        scene3D.add(line);
+        hyper3D.grid.push(line);
+      }
+      
+      // Powierzchnia hyperboloidu (półprzezroczysta siatka)
+      // Ręczna implementacja parametrycznej geometrii
+      const slices = 32;
+      const stacks = 64;
+      const surfaceVertices = [];
+      const surfaceIndices = [];
+      
+      for (let i = 0; i <= slices; i++) {
+        const u = i / slices;
+        for (let j = 0; j <= stacks; j++) {
+          const v = j / stacks;
+          const radius = u * 0.92;
+          const angle = v * Math.PI * 2;
+          const diskU = radius * Math.cos(angle);
+          const diskV = radius * Math.sin(angle);
+          const p = diskToHyperboloid(diskU, diskV);
+          surfaceVertices.push(p.x, p.y, p.z);
+        }
+      }
+      
+      for (let i = 0; i < slices; i++) {
+        for (let j = 0; j < stacks; j++) {
+          const a = i * (stacks + 1) + j;
+          const b = a + stacks + 1;
+          surfaceIndices.push(a, b, a + 1);
+          surfaceIndices.push(b, b + 1, a + 1);
+        }
+      }
+      
+      const surfaceGeo = new THREE.BufferGeometry();
+      surfaceGeo.setAttribute('position', new THREE.Float32BufferAttribute(surfaceVertices, 3));
+      surfaceGeo.setIndex(surfaceIndices);
+      
+      const surfaceMat = new THREE.MeshBasicMaterial({
+        color: 0x89ddff,
+        transparent: true,
+        opacity: 0.1,
+        side: THREE.DoubleSide,
+        wireframe: false
+      });
+      hyper3D.surface = new THREE.Mesh(surfaceGeo, surfaceMat);
+      scene3D.add(hyper3D.surface);
+      
+      // Gracz na hyperboloidzie
+      const playerGeo = new THREE.SphereGeometry(0.12, 16, 16);
+      const playerMat = new THREE.MeshBasicMaterial({ color: 0x7fdbca });
+      hyper3D.player = new THREE.Mesh(playerGeo, playerMat);
+      hyper3D.player.position.set(0, 0, 1);  // początek na szczycie
+      scene3D.add(hyper3D.player);
+      
+      // Strzałka kierunku
+      const arrowGeo = new THREE.ConeGeometry(0.08, 0.3, 8);
+      const arrowMat = new THREE.MeshBasicMaterial({ color: 0xffcb6b });
+      hyper3D.arrow = new THREE.Mesh(arrowGeo, arrowMat);
+      scene3D.add(hyper3D.arrow);
+      
+      // Osie pomocnicze
+      const axesHelper = new THREE.AxesHelper(2);
+      scene3D.add(axesHelper);
+    }
+    
+    function build3DSierpinski() {
+      // Usuń poprzednie
+      hyper3D.sierpinski.forEach(obj => scene3D.remove(obj));
+      hyper3D.sierpinski = [];
+      
+      // Trójkąt Sierpińskiego na hyperboloidzie
+      // Używamy tych samych wierzchołków co dla lewej strony
+      const triangleDistance = 4;
+      const rLeft = Math.tanh(triangleDistance / 2);
+      const v1L = [rLeft * Math.cos(Math.PI/2), rLeft * Math.sin(Math.PI/2)];
+      const v2L = [rLeft * Math.cos(Math.PI/2 + 2*Math.PI/3), rLeft * Math.sin(Math.PI/2 + 2*Math.PI/3)];
+      const v3L = [rLeft * Math.cos(Math.PI/2 + 4*Math.PI/3), rLeft * Math.sin(Math.PI/2 + 4*Math.PI/3)];
+      
+      const triangles = generateSierpinskiHyperbolic(v1L, v2L, v3L, 4); // mniejsza głębokość dla 3D
+      
+      const material = new THREE.LineBasicMaterial({ color: 0xff6b6b, transparent: true, opacity: 0.8 });
+      
+      triangles.forEach(tri => {
+        const [v1, v2, v3] = tri;
+        
+        // Rysuj boki jako geodezyjne na hyperboloidzie
+        const edges = [[v1, v2], [v2, v3], [v3, v1]];
+        edges.forEach(([va, vb]) => {
+          const z1 = C(va[0], va[1]);
+          const z2 = C(vb[0], vb[1]);
+          const geodesicPts = hyperbolicGeodesic(z1, z2, 16);
+          
+          const pts3D = geodesicPts.map(z => {
+            const p = diskToHyperboloid(z.re, z.im);
+            return new THREE.Vector3(p.x, p.y, p.z);
+          });
+          
+          const geo = new THREE.BufferGeometry().setFromPoints(pts3D);
+          const line = new THREE.Line(geo, material);
+          scene3D.add(line);
+          hyper3D.sierpinski.push(line);
+        });
+      });
+    }
+    
+    function update3DView() {
+      // Aktualizuj pozycję gracza na hyperboloidzie
+      const p = diskToHyperboloid(a.re, a.im);
+      hyper3D.player.position.set(p.x, p.y, p.z);
+      
+      // Aktualizuj strzałkę kierunku
+      // Kierunek w przestrzeni stycznej do hyperboloidu
+      const eps = 0.01;
+      const dirDisk = C(a.re + eps * Math.cos(yaw), a.im + eps * Math.sin(yaw));
+      const pDir = diskToHyperboloid(dirDisk.re, dirDisk.im);
+      
+      hyper3D.arrow.position.set(p.x, p.y, p.z);
+      hyper3D.arrow.lookAt(pDir.x, pDir.y, pDir.z);
+      hyper3D.arrow.rotateX(Math.PI / 2);
+      
+      // Aktualizuj kamerę 3D (orbita wokół)
+      const camX = view3D.dist * Math.sin(view3D.phi) * Math.cos(view3D.theta);
+      const camY = view3D.dist * Math.sin(view3D.phi) * Math.sin(view3D.theta);
+      const camZ = view3D.dist * Math.cos(view3D.phi) + 2;
+      cam3D.position.set(camX, camY, camZ);
+      cam3D.lookAt(0, 0, 2);
+    }
+    
+    function toggle3D() {
+      show3D = !show3D;
+      const btn = document.getElementById('btn3D');
+      const rightBadge = document.getElementById('rightBadge');
+      btn.classList.toggle('active', show3D);
+      
+      if (show3D) {
+        rightBadge.innerHTML = '<strong>PRAWO</strong> — Model 3D Hyperboloidu: H² jako powierzchnia x²+y²−z²=−1 w przestrzeni Minkowskiego';
+        if (hyper3D.sierpinski.length === 0 && sierpinski.visible) {
+          build3DSierpinski();
+        }
+      } else {
+        // Przywróć etykietę dla trybu 2D
+        if (displayMode === 'A') {
+          rightBadge.innerHTML = '<strong>PRAWO</strong> — Tryb A: te same komendy ruchu w geometrii euklidesowej ℝ²';
+        } else {
+          rightBadge.innerHTML = '<strong>PRAWO</strong> — Tryb B: ten sam punkt (dH, θ) wyświetlony jako współrzędne kartezjańskie';
+        }
+      }
+    }
+    
+    // Inicjalizacja sceny 3D
+    build3DScene();
+
+    function addDiskBoundary(){
+      const ring = new THREE.Mesh(
+        new THREE.RingGeometry(0.99, 1.0, 128),
+        new THREE.MeshBasicMaterial({ color:0x89ddff, transparent:true, opacity:0.35, side:THREE.DoubleSide })
+      );
+      sceneL.add(ring);
+    }
+
+    function addLeftGrid(){
+      // Radials (geodesics through center)
+      for (let i=0;i<24;i++){
+        const th = (i/24)*Math.PI*2;
+        const pts = [];
+        for (let r=0;r<=0.98;r+=0.02){
+          pts.push(new THREE.Vector3(r*Math.cos(th), r*Math.sin(th), 0));
+        }
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        const mat = new THREE.LineBasicMaterial({ color:0x3d5a80, transparent:true, opacity:0.28 });
+        const line = new THREE.Line(geo, mat);
+        line.userData.base = pts.map(v => C(v.x, v.y));
+        sceneL.add(line);
+        left.objects.push(line);
+      }
+      
+      // POPRAWKA: Okręgi w równych odstępach HIPERBOLICZNYCH
+      // Δd_H = 0.5 jednostki hiperbolicznej
+      const deltaHyperbolic = 0.5;
+      const maxHyperbolicDist = 4.0; // odpowiada ρ ≈ 0.964
+      
+      for (let dH = deltaHyperbolic; dH <= maxHyperbolicDist; dH += deltaHyperbolic){
+        const rEuclid = hyperbolicToEuclidean(dH); // ρ = tanh(d_H/2)
+        
+        if (rEuclid >= 0.99) continue; // Nie rysuj zbyt blisko brzegu
+        
+        const pts = [];
+        for (let i=0;i<=180;i++){
+          const th = (i/180)*Math.PI*2;
+          pts.push(new THREE.Vector3(rEuclid*Math.cos(th), rEuclid*Math.sin(th), 0));
+        }
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        
+        // Intensywniejszy kolor dla "ważniejszych" okręgów (całkowite d_H)
+        const isInteger = Math.abs(dH - Math.round(dH)) < 0.01;
+        const opacity = isInteger ? 0.35 : 0.15;
+        
+        const mat = new THREE.LineBasicMaterial({ 
+          color:0xc792ea, 
+          transparent:true, 
+          opacity: opacity
+        });
+        const line = new THREE.Line(geo, mat);
+        line.userData.base = pts.map(v => C(v.x, v.y));
+        line.userData.hyperbolicDist = dH; // Zapisujemy dla ewentualnych etykiet
+        sceneL.add(line);
+        left.objects.push(line);
+      }
+    }
+
+    function addLeftLandmarks(){
+      // Punkty orientacyjne w różnych odległościach hiperbolicznych
+      const pts = [ 
+        C(0.35, 0.15),   // d_H ≈ 0.77
+        C(-0.4, 0.22),   // d_H ≈ 0.93
+        C(0.15, -0.55),  // d_H ≈ 1.22
+        C(-0.2, -0.25),  // d_H ≈ 0.65
+        C(0.62, -0.1),   // d_H ≈ 1.34
+        C(-0.1, 0.62),   // d_H ≈ 1.32
+        C(0.0, -0.75)    // d_H ≈ 1.95
+      ];
+      pts.forEach((p, idx) => {
+        const g = new THREE.CircleGeometry(0.015, 20);
+        const m = new THREE.MeshBasicMaterial({ color: (idx%2===0)?0xffcb6b:0xc3e88d, transparent:true, opacity:0.95 });
+        const s = new THREE.Mesh(g, m);
+        s.userData.base = [p];
+        sceneL.add(s);
+        left.objects.push(s);
+      });
+
+      // Player marker at center
+      const you = new THREE.Mesh(
+        new THREE.CircleGeometry(0.02, 24),
+        new THREE.MeshBasicMaterial({ color:0x7fdbca, transparent:true, opacity:0.95 })
+      );
+      you.position.set(0,0,0.01);
+      sceneL.add(you);
+
+      // Direction arrow
+      const arrowGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0,0,0.02),
+        new THREE.Vector3(0.10,0,0.02)
+      ]);
+      const arrow = new THREE.Line(arrowGeo, new THREE.LineBasicMaterial({ color:0x7fdbca, transparent:true, opacity:0.9 }));
+      sceneL.add(arrow);
+      left.arrow = arrow;
+    }
+
+    addDiskBoundary();
+    addLeftGrid();
+    addLeftLandmarks();
+
+    // ---------- RIGHT (Euclidean Cartesian) ----------
+    const right = { you:null, arrow:null, trail:null, camOffset: {x:0, y:0} };
+
+    function addRightGrid(){
+      const size = 30;
+      const step = 1;
+
+      function addLine(x1,y1,x2,y2, major){
+        const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(x1,y1,0), new THREE.Vector3(x2,y2,0)]);
+        const mat = new THREE.LineBasicMaterial({ color: major?0xc792ea:0x3d5a80, transparent:true, opacity: major?0.18:0.10 });
+        sceneR.add(new THREE.Line(geo, mat));
+      }
+
+      for (let x=-size; x<=size; x+=step) addLine(x,-size,x,size,(x%5===0));
+      for (let y=-size; y<=size; y+=step) addLine(-size,y,size,y,(y%5===0));
+
+      addLine(-size,0,size,0,true);
+      addLine(0,-size,0,size,true);
+    }
+
+    function addRightPlayer(){
+      right.you = new THREE.Mesh(
+        new THREE.CircleGeometry(0.25, 28),
+        new THREE.MeshBasicMaterial({ color:0xf78c6c, transparent:true, opacity:0.70 })
+      );
+      right.you.position.set(0,0,0.01);
+      sceneR.add(right.you);
+
+      const arrowGeo = new THREE.BufferGeometry().setFromPoints([
+        new THREE.Vector3(0,0,0.02),
+        new THREE.Vector3(1.2,0,0.02)
+      ]);
+      right.arrow = new THREE.Line(arrowGeo, new THREE.LineBasicMaterial({ color:0xf78c6c, transparent:true, opacity:0.8 }));
+      sceneR.add(right.arrow);
+
+      const trailMax = 400;
+      const pts = Array.from({length: trailMax}, () => new THREE.Vector3(0,0,0));
+      const geom = new THREE.BufferGeometry().setFromPoints(pts);
+      const line = new THREE.Line(geom, new THREE.LineBasicMaterial({ color:0xffcb6b, transparent:true, opacity:0.35 }));
+      sceneR.add(line);
+      right.trail = { pts, geom, line, head:0, trailMax };
+    }
+
+    addRightGrid();
+    addRightPlayer();
+
+    // ---------- SIERPIŃSKI TRIANGLE ----------
+    const sierpinski = {
+      visible: false,
+      leftObjects: [],
+      rightObjects: [],
+      depth: 5 // głębokość rekurencji
+    };
+
+    // Generuje trójkąty Sierpińskiego rekurencyjnie dla geometrii EUKLIDESOWEJ
+    function generateSierpinskiEuclidean(v1, v2, v3, depth) {
+      if (depth === 0) {
+        return [[v1, v2, v3]];
+      }
+      
+      // Euklidesowe środki boków
+      const m12 = [(v1[0]+v2[0])/2, (v1[1]+v2[1])/2];
+      const m23 = [(v2[0]+v3[0])/2, (v2[1]+v3[1])/2];
+      const m31 = [(v3[0]+v1[0])/2, (v3[1]+v1[1])/2];
+      
+      return [
+        ...generateSierpinskiEuclidean(v1, m12, m31, depth-1),
+        ...generateSierpinskiEuclidean(m12, v2, m23, depth-1),
+        ...generateSierpinskiEuclidean(m31, m23, v3, depth-1)
+      ];
+    }
+
+    // Generuje trójkąty Sierpińskiego rekurencyjnie dla geometrii HIPERBOLICZNEJ
+    function generateSierpinskiHyperbolic(v1, v2, v3, depth) {
+      if (depth === 0) {
+        return [[v1, v2, v3]];
+      }
+      
+      // Hiperboliczne środki boków!
+      const z1 = C(v1[0], v1[1]);
+      const z2 = C(v2[0], v2[1]);
+      const z3 = C(v3[0], v3[1]);
+      
+      const m12 = hyperbolicMidpoint(z1, z2);
+      const m23 = hyperbolicMidpoint(z2, z3);
+      const m31 = hyperbolicMidpoint(z3, z1);
+      
+      const m12arr = [m12.re, m12.im];
+      const m23arr = [m23.re, m23.im];
+      const m31arr = [m31.re, m31.im];
+      
+      return [
+        ...generateSierpinskiHyperbolic(v1, m12arr, m31arr, depth-1),
+        ...generateSierpinskiHyperbolic(m12arr, v2, m23arr, depth-1),
+        ...generateSierpinskiHyperbolic(m31arr, m23arr, v3, depth-1)
+      ];
+    }
+
+    // Tworzy geometrię dla trójkątów EUKLIDESOWYCH (proste linie)
+    function createSierpinskiEuclidean(triangles, color, opacity) {
+      const lines = [];
+      
+      triangles.forEach(tri => {
+        const [v1, v2, v3] = tri;
+        const pts = [
+          new THREE.Vector3(v1[0], v1[1], 0.005),
+          new THREE.Vector3(v2[0], v2[1], 0.005),
+          new THREE.Vector3(v3[0], v3[1], 0.005),
+          new THREE.Vector3(v1[0], v1[1], 0.005)
+        ];
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        const mat = new THREE.LineBasicMaterial({ 
+          color: color, 
+          transparent: true, 
+          opacity: opacity 
+        });
+        const line = new THREE.Line(geo, mat);
+        // Zapisz bazowe pozycje dla transformacji w trybie B
+        line.userData.baseEuclid = [[v1[0], v1[1]], [v2[0], v2[1]], [v3[0], v3[1]], [v1[0], v1[1]]];
+        lines.push(line);
+      });
+      
+      return lines;
+    }
+
+    // Tworzy geometrię dla trójkątów HIPERBOLICZNYCH (łuki geodezyjne)
+    function createSierpinskiHyperbolic(triangles, color, opacity) {
+      const lines = [];
+      
+      triangles.forEach(tri => {
+        const [v1, v2, v3] = tri;
+        const z1 = C(v1[0], v1[1]);
+        const z2 = C(v2[0], v2[1]);
+        const z3 = C(v3[0], v3[1]);
+        
+        // Trzy boki jako geodezyjne hiperboliczne
+        const edge1 = hyperbolicGeodesic(z1, z2, 24);
+        const edge2 = hyperbolicGeodesic(z2, z3, 24);
+        const edge3 = hyperbolicGeodesic(z3, z1, 24);
+        
+        // Połącz wszystkie krawędzie w jeden łańcuch punktów
+        const allPoints = [...edge1, ...edge2.slice(1), ...edge3.slice(1)];
+        
+        const pts = allPoints.map(z => new THREE.Vector3(z.re, z.im, 0.005));
+        const geo = new THREE.BufferGeometry().setFromPoints(pts);
+        const mat = new THREE.LineBasicMaterial({ 
+          color: color, 
+          transparent: true, 
+          opacity: opacity 
+        });
+        const line = new THREE.Line(geo, mat);
+        
+        // Zapisz bazowe punkty dla transformacji Möbiusa
+        line.userData.base = allPoints;
+        lines.push(line);
+      });
+      
+      return lines;
+    }
+
+    function initSierpinski() {
+      // Odległość wierzchołków od początku (w jednostkach hiperbolicznych dla lewej strony)
+      const triangleDistance = 4;
+      
+      // === LEWA STRONA: Hiperboliczna ===
+      // Przeliczamy odległość hiperboliczną na współrzędne dysku: ρ = tanh(d_H / 2)
+      const rLeft = Math.tanh(triangleDistance / 2);
+      const v1L = [rLeft * Math.cos(Math.PI/2), rLeft * Math.sin(Math.PI/2)];
+      const v2L = [rLeft * Math.cos(Math.PI/2 + 2*Math.PI/3), rLeft * Math.sin(Math.PI/2 + 2*Math.PI/3)];
+      const v3L = [rLeft * Math.cos(Math.PI/2 + 4*Math.PI/3), rLeft * Math.sin(Math.PI/2 + 4*Math.PI/3)];
+      
+      // Użyj hiperbolicznej rekurencji i geodezyjnych!
+      const trianglesLeft = generateSierpinskiHyperbolic(v1L, v2L, v3L, sierpinski.depth);
+      sierpinski.leftObjects = createSierpinskiHyperbolic(trianglesLeft, 0xff6b6b, 0.7);
+      sierpinski.leftObjects.forEach(obj => {
+        obj.visible = false;
+        sceneL.add(obj);
+        left.objects.push(obj);
+      });
+      
+      // === PRAWA STRONA: Euklidesowa ===
+      const rRight = triangleDistance;
+      const v1R = [rRight * Math.cos(Math.PI/2), rRight * Math.sin(Math.PI/2)];
+      const v2R = [rRight * Math.cos(Math.PI/2 + 2*Math.PI/3), rRight * Math.sin(Math.PI/2 + 2*Math.PI/3)];
+      const v3R = [rRight * Math.cos(Math.PI/2 + 4*Math.PI/3), rRight * Math.sin(Math.PI/2 + 4*Math.PI/3)];
+      
+      // Użyj euklidesowej rekurencji i prostych linii
+      const trianglesRight = generateSierpinskiEuclidean(v1R, v2R, v3R, sierpinski.depth);
+      sierpinski.rightObjects = createSierpinskiEuclidean(trianglesRight, 0xff6b6b, 0.5);
+      sierpinski.rightObjects.forEach(obj => {
+        obj.visible = false;
+        obj.userData.base = null;
+        sceneR.add(obj);
+      });
+      
+      console.log(`Trójkąt Sierpińskiego: d_H=${triangleDistance}, ρ_dysk=${rLeft.toFixed(3)}, trójkątów: ${trianglesLeft.length}`);
+    }
+
+    function toggleSierpinski() {
+      sierpinski.visible = !sierpinski.visible;
+      sierpinski.leftObjects.forEach(obj => obj.visible = sierpinski.visible);
+      sierpinski.rightObjects.forEach(obj => obj.visible = sierpinski.visible);
+      
+      // Aktualizuj też widok 3D
+      if (sierpinski.visible && show3D) {
+        build3DSierpinski();
+      }
+      hyper3D.sierpinski.forEach(obj => obj.visible = sierpinski.visible);
+      
+      const btn = document.getElementById('btnSierpinski');
+      btn.classList.toggle('active', sierpinski.visible);
+    }
+
+    initSierpinski();
+    document.getElementById('btnSierpinski').addEventListener('click', toggleSierpinski);
+    document.getElementById('btn3D').addEventListener('click', () => {
+      toggle3D();
+      if (show3D && sierpinski.visible) {
+        build3DSierpinski();
+        hyper3D.sierpinski.forEach(obj => obj.visible = true);
+      }
+    });
+
+    // ---------- MODE A/B ----------
+    // Mode A: te same komendy ruchu w obu geometriach (ex,ey niezależne)
+    // Mode B: ten sam punkt - prawa strona pokazuje (dH·cos(θ), dH·sin(θ))
+    let displayMode = 'A';
+
+    function toggleMode() {
+      displayMode = (displayMode === 'A') ? 'B' : 'A';
+      const btn = document.getElementById('btnMode');
+      const distLabel = document.getElementById('distLabel');
+      const rightBadge = document.getElementById('rightBadge');
+      if (displayMode === 'A') {
+        btn.textContent = 'Tryb A: te same komendy';
+        btn.classList.remove('active');
+        distLabel.textContent = 'Odległość euklid.';
+        rightBadge.innerHTML = '<strong>PRAWO</strong> — Tryb A: te same komendy ruchu w geometrii euklidesowej ℝ²';
+      } else {
+        btn.textContent = 'Tryb B: ten sam punkt';
+        btn.classList.add('active');
+        distLabel.textContent = 'Odległość (=dH)';
+        rightBadge.innerHTML = '<strong>PRAWO</strong> — Tryb B: ten sam punkt (dH, θ) wyświetlony jako współrzędne kartezjańskie';
+      }
+      // Wyczyść trail przy zmianie trybu
+      const tr = right.trail;
+      for (let i = 0; i < tr.trailMax; i++) tr.pts[i].set(0, 0, 0);
+      tr.head = 0;
+      tr.geom.attributes.position.needsUpdate = true;
+    }
+
+    document.getElementById('btnMode').addEventListener('click', toggleMode);
+
+    // ---------- Update ----------
+    function updateLeftWorld(){
+      const minusA = C(-a.re, -a.im);
+      left.objects.forEach(obj => {
+        const base = obj.userData.base;
+        if (!base) return;
+
+        if (obj.isLine){
+          const attr = obj.geometry.attributes.position;
+          const arr = attr.array;
+          const n = base.length;
+          for (let i=0;i<n;i++){
+            const z = base[i];
+            const zr = mobiusTranslate(z, minusA);
+            arr[i*3+0] = zr.re;
+            arr[i*3+1] = zr.im;
+          }
+          attr.needsUpdate = true;
+        } else {
+          const z = base[0];
+          const zr = mobiusTranslate(z, minusA);
+          obj.position.set(zr.re, zr.im, 0.01);
+        }
+      });
+
+      if (left.arrow) left.arrow.rotation.z = yaw;
+    }
+
+    function writeTrail(trail, x, y){
+      trail.head = (trail.head + 1) % trail.trailMax;
+      trail.pts[trail.head].set(x,y,0);
+
+      const arr = trail.geom.attributes.position.array;
+      for (let i=0;i<trail.trailMax;i++){
+        const idx = (trail.head + 1 + i) % trail.trailMax;
+        const v = trail.pts[idx];
+        arr[i*3+0]=v.x; arr[i*3+1]=v.y; arr[i*3+2]=v.z;
+      }
+      trail.geom.attributes.position.needsUpdate = true;
+    }
+
+    function updateRightWorld(){
+      let posX, posY, arrowYaw;
+      let camOffsetX = 0, camOffsetY = 0;
+      
+      if (displayMode === 'A') {
+        // Tryb A: niezależne współrzędne euklidesowe (te same komendy)
+        // Gracz się przesuwa, świat stoi, kamera śledzi gracza
+        posX = ex;
+        posY = ey;
+        arrowYaw = yawEuclid;
+        camOffsetX = ex;  // kamera śledzi gracza
+        camOffsetY = ey;
+      } else {
+        // Tryb B: ten sam punkt co w dysku hiperbolicznym
+        // GRACZ W ŚRODKU, ŚWIAT SIĘ PRZESUWA (jak na lewej stronie!)
+        const absA = cAbs(a);
+        const dH = euclideanToHyperbolic(absA);
+        const theta = Math.atan2(a.im, a.re);
+        
+        // Pozycja gracza w świecie (używana do HUD i trail)
+        posX = dH * Math.cos(theta);
+        posY = dH * Math.sin(theta);
+        arrowYaw = yaw; // hyperbolic yaw (with holonomy)
+        
+        // Kamera śledzi gracza = gracz na środku ekranu, świat się przesuwa
+        camOffsetX = posX;
+        camOffsetY = posY;
+      }
+      
+      right.you.position.set(posX, posY, 0.01);
+      right.arrow.position.set(posX, posY, 0.02);
+      right.arrow.rotation.z = arrowYaw;
+      writeTrail(right.trail, posX, posY);
+      
+      // Zapisz offset kamery do użycia w renderSplit
+      right.camOffset = { x: camOffsetX, y: camOffsetY };
+    }
+
+    // ---------- Movement ----------
+    function stepWalk(ds){
+      // ds = hyperbolic step length
+      // Convert to Euclidean distance in disk: ρ = tanh(|ds|/2)
+      const rho = Math.tanh(Math.abs(ds)/2);
+      const dir = C(Math.cos(yaw), Math.sin(yaw));
+      const t = C(dir.re * (ds>=0?rho:-rho), dir.im * (ds>=0?rho:-rho));
+
+      // === HOLONOMY CORRECTION (hyperbolic only!) ===
+      // When walking along a geodesic in hyperbolic space, the tangent direction rotates.
+      // The geodesic from a through a_new = T_a(t) has tangent at a_new given by:
+      //   dT_a/dz|_{z=t} = (1-|a|²)/(1+conj(a)·t)²
+      // The argument of this derivative gives the rotation of the tangent vector.
+      // New yaw = old yaw + arg(derivative) = yaw - 2·arg(1 + conj(a)·t)
+      const conjA = cConj(a);
+      const conjAT = cMul(conjA, t);
+      const onePlusConjAT = cAdd(C(1, 0), conjAT);
+      const holonomyRotation = -2 * Math.atan2(onePlusConjAT.im, onePlusConjAT.re);
+
+      // Hyperbolic update inside disk using Möbius translation
+      a = mobiusTranslate(t, a);
+      
+      // Apply holonomy correction to hyperbolic yaw only
+      yaw += holonomyRotation;
+      yaw = normalizeAngle(yaw);
+
+      // Euclidean update in ℝ² (NO holonomy - flat space!)
+      ex += Math.cos(yawEuclid) * ds;
+      ey += Math.sin(yawEuclid) * ds;
+
+      // Keep |a|<1 numerically (safety clamp near boundary)
+      const n = cAbs(a);
+      if (n > 0.999999) {
+        a = C(a.re / (n+1e-12) * 0.999999, a.im / (n+1e-12) * 0.999999);
+      }
+    }
+
+    // ---------- Input ----------
+    document.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
+    document.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key.toLowerCase() === 'r') {
+        yaw = 0;
+        yawEuclid = 0;
+        a = C(0,0);
+        ex = 0; ey = 0;
+        const tr = right.trail;
+        for (let i=0;i<tr.trailMax;i++) tr.pts[i].set(0,0,0);
+        tr.head = 0;
+        tr.geom.attributes.position.needsUpdate = true;
+      }
+    });
+
+    canvas.addEventListener('mousedown', (e) => { 
+      const half = window.innerWidth / 2;
+      if (show3D && e.clientX > half) {
+        // Prawy panel w trybie 3D
+        view3D.dragging = true;
+        view3D.lx = e.clientX;
+        view3D.ly = e.clientY;
+      } else {
+        view.dragging = true; 
+        view.lx = e.clientX; 
+        view.ly = e.clientY;
+      }
+    });
+    window.addEventListener('mouseup', () => {
+      view.dragging = false;
+      view3D.dragging = false;
+    });
+    window.addEventListener('mousemove', (e) => {
+      if (view.dragging) {
+        const dx = e.clientX - view.lx;
+        view.lx = e.clientX;
+        view.rot -= dx * 0.005;
+      }
+      if (view3D.dragging) {
+        const dx = e.clientX - view3D.lx;
+        const dy = e.clientY - view3D.ly;
+        view3D.lx = e.clientX;
+        view3D.ly = e.clientY;
+        view3D.theta += dx * 0.01;
+        view3D.phi = Math.max(0.1, Math.min(Math.PI - 0.1, view3D.phi + dy * 0.01));
+      }
+    });
+    window.addEventListener('wheel', (e) => {
+      const half = window.innerWidth / 2;
+      if (show3D && e.clientX > half) {
+        // Zoom dla widoku 3D
+        view3D.dist *= (1 + Math.sign(e.deltaY) * 0.08);
+        view3D.dist = Math.max(3, Math.min(20, view3D.dist));
+      } else {
+        view.zoom *= (1 + Math.sign(e.deltaY) * 0.06);
+        view.zoom = Math.max(0.25, Math.min(3.0, view.zoom));
+      }
+    }, { passive:true });
+
+    // ---------- Render split ----------
+    function renderSplit(){
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      renderer.setSize(w, h, false);
+      const half = Math.floor(w/2);
+
+      // Left: disk view is fixed [-1,1]^2
+      camL.left = -1; camL.right = 1; camL.top = 1; camL.bottom = -1;
+      applyView(camL);
+      renderer.setViewport(0,0,half,h);
+      renderer.setScissor(0,0,half,h);
+      renderer.render(sceneL, camL);
+
+      // Right: albo 2D Euclid albo 3D Hyperboloid
+      renderer.setViewport(half,0,w-half,h);
+      renderer.setScissor(half,0,w-half,h);
+      
+      if (show3D) {
+        // Widok 3D
+        cam3D.aspect = (w-half)/h;
+        cam3D.updateProjectionMatrix();
+        update3DView();
+        renderer.render(scene3D, cam3D);
+      } else {
+        // Widok 2D Euclid
+        const span = 12;
+        const aspectR = (w-half)/h;
+        
+        // Przesuń kamerę żeby śledzić gracza (gracz zawsze na środku)
+        const offsetX = right.camOffset ? right.camOffset.x : 0;
+        const offsetY = right.camOffset ? right.camOffset.y : 0;
+        
+        camR.left = -span + offsetX; 
+        camR.right = span + offsetX;
+        camR.top = span / aspectR + offsetY;
+        camR.bottom = -span / aspectR + offsetY;
+        applyView(camR);
+        renderer.render(sceneR, camR);
+      }
+    }
+
+    // ---------- Loop ----------
+    let last = performance.now();
+    const start = performance.now();
+
+    function animate(){
+      requestAnimationFrame(animate);
+      const now = performance.now();
+      const dt = Math.min(0.033, (now - last)/1000);
+      last = now;
+
+      // turning - both yaws rotate together (player controls local direction)
+      if (keys['a']) {
+        yaw += TURN_SPEED * dt;
+        yawEuclid += TURN_SPEED * dt;
+      }
+      if (keys['d']) {
+        yaw -= TURN_SPEED * dt;
+        yawEuclid -= TURN_SPEED * dt;
+      }
+      yaw = normalizeAngle(yaw);
+      yawEuclid = normalizeAngle(yawEuclid);
+
+      // walking
+      let speed = WALK_SPEED;
+      if (keys['shift']) speed *= 2.0;
+
+      if (keys['w']) stepWalk(speed * dt);
+      if (keys['s']) stepWalk(-speed * dt);
+
+      updateLeftWorld();
+      updateRightWorld();
+
+      // HUD - POPRAWKA: wyświetlamy współrzędne hiperboliczne polarne (d_H, θ)
+      const absA = cAbs(a);
+      const dH = euclideanToHyperbolic(absA);
+      const thetaH = Math.atan2(a.im, a.re); // kąt położenia w dysku
+      
+      // Oblicz pozycję dla prawej strony w zależności od trybu
+      let rightX, rightY, rightDist;
+      if (displayMode === 'A') {
+        rightX = ex;
+        rightY = ey;
+        rightDist = Math.sqrt(ex*ex + ey*ey);
+      } else {
+        rightX = dH * Math.cos(thetaH);
+        rightY = dH * Math.sin(thetaH);
+        rightDist = dH; // w trybie B odległość = dH
+      }
+      
+      document.getElementById('yaw').textContent = (yaw * 180/Math.PI).toFixed(1) + "°";
+      document.getElementById('yawE').textContent = (yawEuclid * 180/Math.PI).toFixed(1) + "°";
+      // Holonomy = difference between hyperbolic and Euclidean yaw (accumulated rotation from curvature)
+      let holonomyDeg = ((yaw - yawEuclid) * 180/Math.PI) % 360;
+      if (holonomyDeg > 180) holonomyDeg -= 360;
+      if (holonomyDeg < -180) holonomyDeg += 360;
+      document.getElementById('holonomy').textContent = (holonomyDeg >= 0 ? "+" : "") + holonomyDeg.toFixed(1) + "°";
+      document.getElementById('dH').textContent = isFinite(dH) ? dH.toFixed(3) : "∞";
+      document.getElementById('thetaH').textContent = (thetaH * 180/Math.PI).toFixed(1) + "°";
+      document.getElementById('ah').textContent = absA.toFixed(3);
+      document.getElementById('ex').textContent = rightX.toFixed(2);
+      document.getElementById('ey').textContent = rightY.toFixed(2);
+      document.getElementById('dE').textContent = rightDist.toFixed(2);
+      document.getElementById('tt').textContent = ((now - start)/1000).toFixed(1);
+
+      renderSplit();
+    }
+
+    window.addEventListener('resize', renderSplit);
+    renderSplit();
+    animate();
+  </script>
+</body>
+</html>
